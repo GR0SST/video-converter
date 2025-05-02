@@ -1,7 +1,5 @@
 import ffmpeg from 'fluent-ffmpeg';
 import fs from "fs";
-import util from "util";
-import { exec } from "child_process";
 import { Values } from "../convert-video";
 
 const path = require("path");
@@ -15,13 +13,17 @@ export interface ConversionTask {
     fps: number;
     status: "converting" | "done" | "queued" | "error";
 }
-const codecs: Record<string, Record<string, string>> = {
-    mp4: { h264: "h264", h265: "libx265" },
-    mov: { h264: "h264", h265: "libx265" },
-    avi: { mpeg4: "mpeg4", h264: "h264" },
-    mkv: { h264: "h264", vp9: "libvpx-vp9" },
-    webm: { vp8: "libvpx", vp9: "libvpx-vp9" },
-    mpeg: { mpeg1: "mpeg1video", mpeg2: "mpeg2video" },
+const codecs: Record<string, string> = {
+    h264: "h264", h265: "libx265",
+
+    mpeg4: "mpeg4",
+
+    vp8: "libvpx", vp9: "libvpx-vp9",
+    mpeg1: "mpeg1video", mpeg2: "mpeg2video",
+};
+const hwAcceleratedCodecs: Record<string, string> = {
+    h264: "h264_videotoolbox",
+    h265: "hevc_videotoolbox",
 };
 const audioCodecs: Record<string, string> = {
     webm: "libopus",
@@ -79,50 +81,65 @@ async function convertFile(task: ConversionTask, params: Values, progress: (task
         throw new Error("Invalid compression mode");
     }
     progress(task);
+
+    const video = ffmpeg().input(task.file);
+    if (params.audioFiles.length) video.input(params.audioFiles[0]);
+
+    const originalName = path.parse(task.file).name;
+    const originalExt = path.extname(task.file);
+
+
+    const outputDir = path.join(params.outputFolder[0], params.subfolderName);
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    let fileName: string;
+
+    if (params.rename && params.rename.trim() !== "") {
+        fileName = params.rename
+            .replace(/{name}/g, originalName)
+            .replace(/{ext}/g, originalExt.replace(".", ""))
+            .replace(/{format}/g, params.videoFormat)
+            .replace(/{codec}/g, params.videoCodec)
+            .replace(/{length}/g, `${duration.toFixed()}s`);
+    } else {
+        fileName = originalName;
+    }
+    const outputPath = getAvailableFilePath(outputDir, fileName, params.videoFormat);
+    //const outputPath = path.join(outputDir, fileName);
+
+    const videoCodec = (params.useHardwareAcceleration ? hwAcceleratedCodecs[params.videoCodec] : codecs[params.videoCodec]) || codecs[params.videoCodec];
+    const audioCodec = audioCodecs[params.videoFormat] || audioCodecs.default;
+
+
+    const options = [
+        `-c:a ${audioCodec}`,
+        `-b:a ${params.audioBitrate}k`,
+        `-c:v ${videoCodec}`,
+        '-map 0:v:0',
+        `-b:v ${bitrate}k`,
+        `-minrate ${bitrate}k`,
+        `-maxrate ${bitrate}k`,
+        `-bufsize ${bitrate * 2}k`,
+        `-preset ${params.preset}`,
+        '-y'
+    ];
+
+    params.audioFiles.length ? options.push('-map 1:a:0') : options.push('-map 0:a:0');
+
+    if (params.videoCodec === "h265") {
+        options.push('-vtag hvc1');
+    }
+
+    video.outputOptions(options);
+    video.duration(duration);
     return new Promise((res) => {
-        const video = ffmpeg().input(task.file);
-        params.audioFiles.length && video.input(params.audioFiles[0]);
-        const fileName = path.basename(task.file);
-        const outputDir = path.join(params.outputFolder[0], params.subfolderName);
-        if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(outputDir, { recursive: true });
-        }
-        const output = getAvailableFilePath(outputDir, fileName, params.videoFormat);
-
-        let videoCodec = codecs[params.videoFormat][params.videoCodec];
-        const audioCodec = audioCodecs[params.videoFormat] || audioCodecs.default;
-
-        if (params.useHardwareAcceleration) {
-            videoCodec = params.videoCodec === "h265" ? "hevc_videotoolbox" : "h264_videotoolbox";
-        }
-        const options = [
-            `-c:a ${audioCodec}`,
-            `-b:a ${params.audioBitrate}k`,
-            `-c:v ${videoCodec}`,
-            '-map 0:v:0',
-            `-b:v ${bitrate}k`,
-            `-minrate ${bitrate}k`,
-            `-maxrate ${bitrate}k`,
-            `-bufsize ${bitrate * 2}k`,
-            `-preset ${params.preset}`,
-            //'-x264-params', `nal-hrd=cbr:force-cfr=1`,
-            '-y'
-        ];
-
-        params.audioFiles.length ? options.push('-map 1:a:0') : options.push('-map 0:a:0');
-
-        if (params.useHardwareAcceleration) {
-            options.push("-hwaccel videotoolbox")
-        } else if (params.videoCodec === "h265") {
-            options.push('-vtag hvc1');
-        }
-
-        video.outputOptions(options);
-        video.duration(duration);
-        video.on('error', () => {
+        video.on('error', (err) => {
             task.status = "error";
             progress(task);
             //console.log(`Error converting ${task.file}`);
+            console.log(`Error: ${err.message}`);
 
             res(false)
         });
@@ -131,6 +148,7 @@ async function convertFile(task: ConversionTask, params: Values, progress: (task
             task.progress = 100;
             task.elapsed = Math.floor((new Date().getTime() - task.started.getTime()) / 1000);
             progress(task);
+            if (params.deleteOriginalFiles) deleteFile(task.file)
             //console.log(`Finished converting ${task.file}`);
             res(true)
         });
@@ -139,12 +157,11 @@ async function convertFile(task: ConversionTask, params: Values, progress: (task
                 task.progress = Math.round(p.percent);
             if (p.frames)
                 task.fps = p.currentFps
-            console.log(p);
+            //console.log(p);
             progress(task);
         });
-        console.log(output);
 
-        video.saveToFile(output);
+        video.saveToFile(outputPath);
     })
 
 }
@@ -199,5 +216,14 @@ function getAvailableFilePath(outputDir: string, fileName: string, extension: st
     }
 
     return fullPath;
+}
+
+function deleteFile(filePath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        fs.unlink(filePath, (err) => {
+            if (err) return reject(err);
+            resolve();
+        });
+    });
 }
 

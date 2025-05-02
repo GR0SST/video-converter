@@ -313,12 +313,13 @@ export default function VideoConverter() {
         title="Rename (Optional)"
         value={formData.rename}
         onChange={(v) => handleChange("rename", v)}
-        info="Shortcuts: {name} - Original name, {ext} - Original extension, {format} - Output format, {codec} - Output codec {size} - Output size"
+        info="Shortcuts: {name} - Original name, {ext} - Original extension, {format} - Output format, {codec} - Output codec {length} - Output length in seconds"
       />
 
       <Form.Checkbox
         id="useHardwareAcceleration"
         label="Use Hardware Acceleration"
+        info = "Enable hardware acceleration for encoding. This may speed up conversion but can lead to inaccurate results and is not supported by all formats"
         value={formData.useHardwareAcceleration}
         onChange={(v) => handleChange("useHardwareAcceleration", v)}
       />
