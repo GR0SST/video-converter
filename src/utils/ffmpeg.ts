@@ -11,7 +11,8 @@ export interface ConversionTask {
     elapsed?: number;
     progress: number;
     fps: number;
-    status: "converting" | "done" | "queued" | "error";
+    ffmpeg?: ffmpeg.FfmpegCommand;
+    status: "converting" | "done" | "queued" | "error" | "cancelled";
 }
 const codecs: Record<string, string> = {
     h264: "h264", h265: "libx265",
@@ -64,7 +65,8 @@ export async function convertVideo(values: Values, progress: (task: ConversionTa
 }
 
 async function convertFile(task: ConversionTask, params: Values, progress: (task: ConversionTask) => void) {
-    if (task.status === "done" || task.status === "error") return progress(task);
+    if (task.status === "done" || task.status === "error" || task.status === "cancelled") return progress(task);
+    
     task.status = "converting";
     task.progress = 0;
     task.started = new Date();
@@ -80,9 +82,11 @@ async function convertFile(task: ConversionTask, params: Values, progress: (task
     } else {
         throw new Error("Invalid compression mode");
     }
-    progress(task);
+
 
     const video = ffmpeg().input(task.file);
+    task.ffmpeg = video;
+    progress(task);
     if (params.audioFiles.length) video.input(params.audioFiles[0]);
 
     const originalName = path.parse(task.file).name;
@@ -136,7 +140,8 @@ async function convertFile(task: ConversionTask, params: Values, progress: (task
     video.duration(duration);
     return new Promise((res) => {
         video.on('error', (err) => {
-            task.status = "error";
+            if (task.status !== "cancelled") 
+                task.status = "error";
             progress(task);
             //console.log(`Error converting ${task.file}`);
             console.log(`Error: ${err.message}`);
@@ -162,16 +167,24 @@ async function convertFile(task: ConversionTask, params: Values, progress: (task
         });
 
         video.saveToFile(outputPath);
+
     })
 
 }
 
-export function cancelConversion() {
-
+export function cancelConversion(): void {
+    currentTasks.map((task) => {
+        if (["done", "error", "cancelled"].includes(task.status)) return task;
+        task.status = "cancelled";
+        task.progress = 0;
+        task.fps = 0;
+        task.ffmpeg?.kill("SIGTERM");
+        return task;
+    });
 }
 
 
-export async function isFFmpegInstalled(): Promise<boolean> {
+export function isFFmpegInstalled(): boolean {
     try {
         const exists = fs.existsSync(ffmpegPath) || fs.existsSync(altPath);
         return exists;

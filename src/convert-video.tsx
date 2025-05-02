@@ -11,7 +11,8 @@ import {
 } from "@raycast/api";
 import path from "path";
 import { loadSettings, saveSettings, defaultSettings } from "./utils/settings";
-import { convertVideo } from "./utils/ffmpeg";
+import  errorInfo  from "./components/ffmpegNotFound"; 
+import { convertVideo, isFFmpegInstalled } from "./utils/ffmpeg";
 export interface Values {
   videoFormat: string;
   videoCodec: string;
@@ -52,6 +53,7 @@ function filterByExtensions(paths: string[], extensions: readonly string[]) {
 export default function VideoConverter() {
   const [formData, setFormData] = useState<Values | null>(null);
   const [isSubmited, setSubmit] = useState(false);
+  const [isFfmpegInstalled, setFfmpegInstalled] = useState(true);
 
   useEffect(() => {
     async function init() {
@@ -76,9 +78,14 @@ export default function VideoConverter() {
         }));
       }
     }
+
+    
+    setFfmpegInstalled(isFFmpegInstalled());
     init();
   }, []);
 
+  if(!isFfmpegInstalled)
+    return errorInfo();
   const handleChange = <K extends keyof Values>(key: K, value: Values[K]) => {
     setFormData((prev) => (prev ? { ...prev, [key]: value } : null));
   };
