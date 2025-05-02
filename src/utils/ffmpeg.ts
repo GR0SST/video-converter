@@ -207,8 +207,8 @@ function getVideoDuration(filePath: string): Promise<number> {
     return new Promise((resolve, reject) => {
         ffmpeg.ffprobe(filePath, (err, metadata) => {
             if (err) return reject(err);
-            const duration = metadata.format.duration; // in seconds
-            if (duration === undefined) return resolve(60)//reject(new Error("Duration not found"));
+            const duration = metadata.format.duration; 
+            if (duration === undefined) return resolve(60)
             resolve(duration);
         });
     });

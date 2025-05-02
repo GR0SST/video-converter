@@ -130,8 +130,6 @@ export default function VideoConverter() {
 
   const handleSubmit = (values: Values) => {
     if (!validate(values)) return;
-                  // clear any previous run
-   // convertVideo(values, );  // NEW: live updates
     showToast({
       style: Toast.Style.Success,
       title: "Conversion started",
@@ -343,6 +341,6 @@ export default function VideoConverter() {
   if (!isSubmited) return form;
   
 
-  // List view
+
   return (<Conversion {...formData} />);
 }

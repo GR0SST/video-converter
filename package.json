@@ -14,7 +14,14 @@
     {
       "name": "convert-video",
       "title": "Convert video",
-      "description": "One-click video & audio conversion with live progress and smart presets",
+      "description": "Advanced video & audio conversion with live progress, customizable settings, and smart presets",
+      "icon": "extension-icon.png",
+      "mode": "view"
+    },
+    {
+      "name": "quick-convert",
+      "title": "Quick convert",
+      "description": "One click video & audio conversion",
       "icon": "extension-icon.png",
       "mode": "view"
     }
