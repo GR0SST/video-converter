@@ -13,14 +13,14 @@
   "commands": [
     {
       "name": "convert-video",
-      "title": "Convert video",
+      "title": "Convert Video",
       "description": "Advanced video & audio conversion with live progress, customizable settings, and smart presets",
       "icon": "extension-icon.png",
       "mode": "view"
     },
     {
       "name": "quick-convert",
-      "title": "Quick convert",
+      "title": "Quick Qonvert",
       "description": "One click video & audio conversion",
       "icon": "extension-icon.png",
       "mode": "view"
