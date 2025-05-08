@@ -1,6 +1,6 @@
 import ffmpeg from 'fluent-ffmpeg';
 import fs from "fs";
-import { Values } from "../convert-video";
+import type { FormValues } from "../types";
 
 const path = require("path");
 
@@ -16,9 +16,7 @@ export interface ConversionTask {
 }
 const codecs: Record<string, string> = {
     h264: "h264", h265: "libx265",
-
     mpeg4: "mpeg4",
-
     vp8: "libvpx", vp9: "libvpx-vp9",
     mpeg1: "mpeg1video", mpeg2: "mpeg2video",
 };
@@ -34,14 +32,10 @@ const audioCodecs: Record<string, string> = {
 const currentTasks: ConversionTask[] = [];
 const ffmpegPath = "/usr/local/bin/ffmpeg";
 const altPath = "/opt/homebrew/bin/ffmpeg";
-let hasRun = false;
 setFFmpegPath()
 
-export async function convertVideo(values: Values, progress: (task: ConversionTask[]) => void) {
-    if (hasRun) return;
-    hasRun = true;
-
-    values.videoFiles.map((file, i) => {
+export async function convertVideo(values: FormValues, progress: (task: ConversionTask[]) => void) {
+    values.videoFiles.map((file: string, i: number) => {
         const task: ConversionTask = {
             id: i,
             file,
@@ -61,10 +55,9 @@ export async function convertVideo(values: Values, progress: (task: ConversionTa
             progress(currentTasks);
         })
     }
-
 }
 
-async function convertFile(task: ConversionTask, params: Values, progress: (task: ConversionTask) => void) {
+async function convertFile(task: ConversionTask, params: FormValues, progress: (task: ConversionTask) => void) {
     if (task.status === "done" || task.status === "error" || task.status === "cancelled") return progress(task);
     
     task.status = "converting";
@@ -83,15 +76,15 @@ async function convertFile(task: ConversionTask, params: Values, progress: (task
         throw new Error("Invalid compression mode");
     }
 
-
     const video = ffmpeg().input(task.file);
     task.ffmpeg = video;
     progress(task);
     if (params.audioFiles.length) video.input(params.audioFiles[0]);
 
-    const originalName = path.parse(task.file).name;
-    const originalExt = path.extname(task.file);
 
+    const parsedPath = path.parse(task.file);
+    const originalName = parsedPath.name + parsedPath.ext;
+    const originalExt = parsedPath.ext;
 
     const outputDir = path.join(params.outputFolder[0], params.subfolderName);
     if (!fs.existsSync(outputDir)) {
@@ -110,6 +103,7 @@ async function convertFile(task: ConversionTask, params: Values, progress: (task
     } else {
         fileName = originalName;
     }
+
     const outputPath = getAvailableFilePath(outputDir, fileName, params.videoFormat);
     //const outputPath = path.join(outputDir, fileName);
 
@@ -215,11 +209,13 @@ function getVideoDuration(filePath: string): Promise<number> {
 }
 
 function getAvailableFilePath(outputDir: string, fileName: string, extension: string): string {
-    const baseName = path.parse(fileName).name;
+
+    const lastDotIndex = fileName.lastIndexOf('.');
+    const baseName = lastDotIndex !== -1 ? fileName.substring(0, lastDotIndex) : fileName;
     const ext = extension.startsWith(".") ? extension : `.${extension}`;
+    
     let finalName = `${baseName}${ext}`;
     let counter = 1;
-
     let fullPath = path.join(outputDir, finalName);
 
     while (fs.existsSync(fullPath)) {

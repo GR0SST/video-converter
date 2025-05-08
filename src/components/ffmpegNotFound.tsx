@@ -1,4 +1,4 @@
-import { Detail, ActionPanel, Action, environment, open } from "@raycast/api";
+import { Detail, ActionPanel, Action, environment, open, Icon } from "@raycast/api";
 
 export default function FfmpegMissing() {
   const brewCmd = "brew install ffmpeg";
@@ -6,27 +6,57 @@ export default function FfmpegMissing() {
   return (
     <Detail
       markdown={`
-# FFmpeg not found
+# 🎥 FFmpeg Not Found
 
-Raycast couldn’t locate **ffmpeg** on your system.
+Raycast couldn't locate **FFmpeg** on your system. FFmpeg is required for video conversion.
 
----
+## 🔧 Installation Options
 
-### Quick fix  
-
+### Option 1: Using Homebrew (Recommended)
 \`\`\`bash
 ${brewCmd}
 \`\`\`
 
-(Requires Homebrew)
+### Option 2: Manual Installation
+1. Download FFmpeg from [ffmpeg.org](https://ffmpeg.org/download.html)
+2. Extract the archive
+3. Add FFmpeg to your system PATH
+
+## ℹ️ About FFmpeg
+FFmpeg is a powerful command-line tool for processing video and audio files. It's used by this extension to:
+- Convert videos between different formats
+- Adjust video quality and size
+- Replace audio tracks
+- Apply hardware acceleration
+
+## 🚀 After Installation
+After installing FFmpeg, please restart Raycast to ensure the extension can detect it.
       `}
       actions={
         <ActionPanel>
-          <Action.CopyToClipboard title="Copy Homebrew Command" content={brewCmd} />
+          <Action.CopyToClipboard 
+            title="Copy Homebrew Command" 
+            content={brewCmd}
+            icon={Icon.Clipboard}
+          />
 
-          <Action title="Run in Terminal" onAction={() => open(`terminal:///${encodeURIComponent(brewCmd)}`)} />
+          <Action 
+            title="Run in Terminal" 
+            onAction={() => open(`terminal:///${encodeURIComponent(brewCmd)}`)}
+            icon={Icon.Terminal}
+          />
 
-          <Action.OpenInBrowser title="Homebrew Installation Guide" url="https://brew.sh/" />
+          <Action.OpenInBrowser 
+            title="Homebrew Installation Guide" 
+            url="https://brew.sh/"
+            icon={Icon.Globe}
+          />
+
+          <Action.OpenInBrowser 
+            title="FFmpeg Documentation" 
+            url="https://ffmpeg.org/documentation.html"
+            icon={Icon.Book}
+          />
         </ActionPanel>
       }
     />

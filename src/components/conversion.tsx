@@ -1,19 +1,53 @@
-import React, { use, useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import path from "path";
 import { ActionPanel, Action, Toast, Icon, List, showInFinder, showToast } from "@raycast/api";
 import { getProgressIcon } from "@raycast/utils";
 import { cancelConversion, ConversionTask, convertVideo } from "../utils/ffmpeg";
-import { Values } from "../convert-video";
+import type { FormValues } from "../types";
+import { CONVERSION_STATUS, LOADING_MESSAGES, ERROR_MESSAGES } from "../constants";
 
-export default function Conversion(values: Values) {
+export default function Conversion({ values }: { values: FormValues }) {
   const [tasks, setTasks] = useState<ConversionTask[]>([]);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const hasStartedConversion = useRef(false);
+
   useEffect(() => {
-    convertVideo(values, (t) => setTasks(t.map((x) => ({ ...x }))));
+    if (hasStartedConversion.current) return;
+    hasStartedConversion.current = true;
+    
+    const startConversion = async () => {
+      try {
+        setIsLoading(true);
+        showToast({
+          style: Toast.Style.Animated,
+          title: LOADING_MESSAGES.INITIALIZING,
+        });
+        
+        await convertVideo(values, (t) => {
+          setTasks(t.map((x) => ({ ...x })));
+          setIsLoading(false);
+        });
+      } catch (error) {
+        showToast({
+          style: Toast.Style.Failure,
+          title: ERROR_MESSAGES.CONVERSION_FAILED,
+          message: error instanceof Error ? error.message : "Unknown error occurred",
+        });
+      }
+    };
+
+    startConversion();
   }, []);
 
-  if (tasks.length === 0) return;
-  const completed = tasks.every((t) => t.status === "done" || t.status === "error" || t.status === "cancelled");
+  if (tasks.length === 0) return null;
+
+  const isCompletedStatus = (status: string): status is typeof CONVERSION_STATUS.DONE | typeof CONVERSION_STATUS.ERROR | typeof CONVERSION_STATUS.CANCELLED => {
+    return [CONVERSION_STATUS.DONE, CONVERSION_STATUS.ERROR, CONVERSION_STATUS.CANCELLED].includes(status as any);
+  };
+
+  const completed = tasks.every((t) => isCompletedStatus(t.status));
+
   if (completed && !isCompleted) {
     setIsCompleted(true);
     showToast({
@@ -22,31 +56,39 @@ export default function Conversion(values: Values) {
       style: Toast.Style.Success,
     });
   }
+
   const title = completed ? "Conversion Completed" : "Converting…";
+  const subtitle = isLoading ? LOADING_MESSAGES.INITIALIZING : 
+    completed ? "All files processed" : 
+    `${tasks.filter(t => t.status === CONVERSION_STATUS.DONE).length}/${tasks.length} files completed`;
 
   return (
     <List
       navigationTitle={title}
+      isLoading={isLoading}
     >
-      <List.Section title="⚠︎  Do not close this window while converting">
+      <List.Section 
+        title={completed ? "✅ Conversion Complete" : "⚠️ Do not close this window while converting"}
+        subtitle={subtitle}
+      >
         {tasks.map((t) => {
-          const isDone = t.status === "done";
+          const isDone = t.status === CONVERSION_STATUS.DONE;
           const percent = isDone ? `Completed in ${formatElapsed(t.elapsed)}` : `${t.progress}%`;
 
           const subtitle = {
-            done: "Done",
-            error: "Error",
-            converting: `Converting... ${t.fps} fps`,
-            queued: "Queued",
-            cancelled: "Cancelled",
+            [CONVERSION_STATUS.DONE]: "Done",
+            [CONVERSION_STATUS.ERROR]: "Error",
+            [CONVERSION_STATUS.CONVERTING]: `Converting... ${t.fps} fps`,
+            [CONVERSION_STATUS.QUEUED]: "Queued",
+            [CONVERSION_STATUS.CANCELLED]: "Cancelled",
           };
 
           const icons = {
-            done: Icon.Checkmark,
-            error: Icon.XMarkCircle,
-            converting: getProgressIcon(t.progress / 100),
-            queued: Icon.Clock,
-            cancelled: Icon.XMarkCircle,
+            [CONVERSION_STATUS.DONE]: Icon.Checkmark,
+            [CONVERSION_STATUS.ERROR]: Icon.XMarkCircle,
+            [CONVERSION_STATUS.CONVERTING]: getProgressIcon(t.progress / 100),
+            [CONVERSION_STATUS.QUEUED]: Icon.Clock,
+            [CONVERSION_STATUS.CANCELLED]: Icon.XMarkCircle,
           };
 
           return (
@@ -55,22 +97,24 @@ export default function Conversion(values: Values) {
               title={path.basename(t.file)}
               subtitle={subtitle[t.status]}
               icon={icons[t.status]}
-              accessories={[{ text: percent }]}
+              accessories={[
+                { text: percent },
+                { text: t.status === CONVERSION_STATUS.ERROR ? "Click to retry" : "" }
+              ]}
               actions={
                 <ActionPanel>
                   <Action
                     title="Show in Finder"
-                    onAction={() => {
-                      const filePath = path.dirname(t.file);
-                      showInFinder(filePath);
-                    }}
+                    onAction={() => showInFinder(path.dirname(t.file))}
                     icon={Icon.Finder}
                   />
-                  <Action
-                    title="Cancel Conversion"
-                    onAction={() => cancelConversion()}
-                    shortcut={{ modifiers: ["cmd"], key: "x" }}
-                  />
+                  {!completed && (
+                    <Action
+                      title="Cancel Conversion"
+                      onAction={() => cancelConversion()}
+                      shortcut={{ modifiers: ["cmd"], key: "x" }}
+                    />
+                  )}
                 </ActionPanel>
               }
             />

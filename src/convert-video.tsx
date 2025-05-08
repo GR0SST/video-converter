@@ -1,180 +1,41 @@
-import React, { useEffect, useState } from "react";
-import {
-  ActionPanel,
-  Action,
-  Form,
-  getSelectedFinderItems,
-  showToast,
-  getFrontmostApplication,
-  Toast,
-  List
-} from "@raycast/api";
-import path from "path";
-import { loadSettings, saveSettings, defaultSettings } from "./utils/settings";
-import  errorInfo  from "./components/ffmpegNotFound"; 
-import { convertVideo, isFFmpegInstalled } from "./utils/ffmpeg";
-export interface Values {
-  videoFormat: string;
-  videoCodec: string;
-  deleteOriginalFiles: boolean;
-  videoFiles: string[];
-  preset: string;
-  audioFiles: string[];
-  outputFolder: string[];
-  subfolderName: string;
-  compressionMode: "bitrate" | "filesize";
-  bitrate: string;
-  maxSize: string;
-  rename: string;
-  audioBitrate: string;
-  useHardwareAcceleration: boolean;
-}
+import React from "react";
+import { ActionPanel, Action, Form } from "@raycast/api";
+import errorInfo from "./components/ffmpegNotFound";
 import Conversion from "./components/conversion";
-type VideoFormat = (typeof AVAILABLE_VIDEO_FORMATS)[number];
-
-const AVAILABLE_VIDEO_FORMATS = ["mp4", "mov", "avi", "mkv", "webm", "mpeg"] as const;
-const AVAILABLE_AUDIO_FORMATS = ["mp3", "wav", "flac", "aac", "ogg", "wma"] as const;
-
-const CODEC_OPTIONS: Record<VideoFormat, string[]> = {
-  mp4: ["h264", "h265"],
-  mov: ["h264", "h265"],
-  avi: ["mpeg4","h264"],
-  mkv: ["h264", "vp9"],
-  webm: ["vp8", "vp9"],
-  mpeg: ["mpeg1","mpeg2"],
-};
-
-const AVAILABLE_PRESETS = [ "ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "veryslow"]; 
-
-function filterByExtensions(paths: string[], extensions: readonly string[]) {
-  return paths.filter((p) => extensions.some((ext) => p.toLowerCase().endsWith(`.${ext}`)));
-}
+import { useVideoConverter } from "./hooks/useVideoConverter";
+import {
+  AVAILABLE_VIDEO_FORMATS,
+  AVAILABLE_AUDIO_FORMATS,
+  AVAILABLE_PRESETS,
+  filterByExtensions,
+  type VideoFormat,
+  type CompressionMode,
+  type VideoCodec,
+  type Preset,
+  CODEC_OPTIONS,
+} from "./types";
 
 export default function VideoConverter() {
-  const [formData, setFormData] = useState<Values | null>(null);
-  const [isSubmited, setSubmit] = useState(false);
-  const [isFfmpegInstalled, setFfmpegInstalled] = useState(true);
+  const {
+    formData,
+    isSubmitted,
+    isFfmpegInstalled,
+    handleChange,
+    handleSubmit,
+    handleSaveDefaults,
+    handleResetDefaults,
+  } = useVideoConverter();
 
-  useEffect(() => {
-    async function init() {
-      const settings = await loadSettings();
-      setFormData(settings);
-
-      const app = await getFrontmostApplication();
-      if (app?.name === "Finder") {
-        const items = await getSelectedFinderItems();
-        const paths = items.filter((i) => !i.path.endsWith("/")).map((i) => i.path);
-        const videoFiles = filterByExtensions(paths, AVAILABLE_VIDEO_FORMATS);
-
-        const parents = [...new Set(videoFiles.map((p) => path.dirname(p)))];
-        const isCommonFolder = parents.length === 1;
-        const outputFolder = isCommonFolder ? [parents[0]] : settings.outputFolder;
-
-        setFormData((prev) => ({
-          ...(prev || settings),
-          videoFiles: filterByExtensions(paths, AVAILABLE_VIDEO_FORMATS),
-          audioFiles: filterByExtensions(paths, [...AVAILABLE_AUDIO_FORMATS]).slice(0, 1),
-          outputFolder,
-        }));
-      }
-    }
-
-    
-    setFfmpegInstalled(isFFmpegInstalled());
-    init();
-  }, []);
-
-  if(!isFfmpegInstalled)
-    return errorInfo();
-  const handleChange = <K extends keyof Values>(key: K, value: Values[K]) => {
-    setFormData((prev) => (prev ? { ...prev, [key]: value } : null));
-  };
-  const isInteger = (value: string) => /^\d+$/.test(value);
-  const isNumber = (value: string) => /^\d+(\.\d+)?$/.test(value);
-
-  const validate = (data: Values): boolean => {
-    if (data.videoFiles.length === 0) {
-      showToast({
-        style: Toast.Style.Failure,
-        title: "No video files selected",
-        message: "Select at least one video file.",
-      });
-      return false;
-    }
-    if (!data.outputFolder[0]) {
-      showToast({
-        style: Toast.Style.Failure,
-        title: "No output folder",
-        message: "Choose an output folder.",
-      });
-      return false;
-    }
-    if (data.compressionMode === "bitrate" && !isInteger(data.bitrate)) {
-      showToast({
-        style: Toast.Style.Failure,
-        title: "Invalid Bitrate",
-        message: "Bitrate must be a whole number.",
-      });
-      return false;
-    }
-    if (data.compressionMode === "filesize" && !isNumber(data.maxSize)) {
-      showToast({
-        style: Toast.Style.Failure,
-        title: "Invalid File Size",
-        message: "Max size must be a number.",
-      });
-      return false;
-    }
-    return true;
-  };
-
-  const handleSubmit = (values: Values) => {
-    if (!validate(values)) return;
-    showToast({
-      style: Toast.Style.Success,
-      title: "Conversion started",
-      message: `${values.videoFiles.length} file(s)`,
-    });
-    setSubmit(true);
-
-  };
-
-  const handleSaveDefaults = async () => {
-    if (!formData) return;
-    if (formData.compressionMode === "bitrate" && !isInteger(formData.bitrate)) {
-      showToast({
-        style: Toast.Style.Failure,
-        title: "Invalid Bitrate",
-        message: "Bitrate must be a whole number to save defaults.",
-      });
-      return;
-    }
-    if (formData.compressionMode === "filesize" && !isNumber(formData.maxSize)) {
-      showToast({
-        style: Toast.Style.Failure,
-        title: "Invalid File Size",
-        message: "Max size must be a number to save defaults.",
-      });
-      return;
-    }
-
-    const { videoFiles, audioFiles, ...settingsToSave } = formData;
-    await saveSettings(settingsToSave);
-    showToast({ style: Toast.Style.Success, title: "Defaults saved" });
-  };
-
-  const handleResetDefaults = async () => {
-    await saveSettings(defaultSettings);
-    const defaults = await loadSettings();
-    setFormData(defaults);
-    showToast({ style: Toast.Style.Success, title: "Defaults reset" });
-  };
-
+  // ------------------------------------
+  // Render Logic
+  // ------------------------------------
+  if (!isFfmpegInstalled) return errorInfo();
   if (!formData) return <Form isLoading />;
+  if (isSubmitted) return <Conversion values = {formData} />;
 
-  const availableCodecs = CODEC_OPTIONS[formData.videoFormat as VideoFormat];
+  const availableCodecs = CODEC_OPTIONS[formData.videoFormat];
 
-  const form = (
+  return (
     <Form
       actions={
         <ActionPanel>
@@ -193,6 +54,7 @@ export default function VideoConverter() {
       }
     >
       <Form.Separator />
+
       <Form.FilePicker
         id="videoFiles"
         title="Video Files"
@@ -207,7 +69,11 @@ export default function VideoConverter() {
         id="videoFormat"
         title="Format"
         value={formData.videoFormat}
-        onChange={(v) => handleChange("videoFormat", v as Values["videoFormat"])}
+        onChange={(v) => {
+          const format = v as VideoFormat;
+          handleChange("videoFormat", format);
+          handleChange("videoCodec", CODEC_OPTIONS[format][0]);
+        }}
       >
         {AVAILABLE_VIDEO_FORMATS.map((fmt) => (
           <Form.Dropdown.Item key={fmt} value={fmt} title={fmt.toUpperCase()} />
@@ -218,7 +84,7 @@ export default function VideoConverter() {
         id="videoCodec"
         title="Codec"
         value={formData.videoCodec}
-        onChange={(v) => handleChange("videoCodec", v as Values["videoCodec"])}
+        onChange={(v) => handleChange("videoCodec", v as VideoCodec)}
       >
         {availableCodecs.map((codec) => (
           <Form.Dropdown.Item key={codec} value={codec} title={codec} />
@@ -229,11 +95,15 @@ export default function VideoConverter() {
         id="preset"
         title="Preset"
         value={formData.preset}
-         info="Faster presets (like ultrafast, superfast) encode quicker but result in larger files or lower quality for the same bitrate. Slower presets (like slow, veryslow) take longer to encode but produce better compression (smaller size or better quality)."
-        onChange={(v) => handleChange("preset", v as Values["preset"])}
+        info="Faster presets (like ultrafast, superfast) encode quicker but result in larger files or lower quality for the same bitrate. Slower presets (like slow, veryslow) take longer to encode but produce better compression (smaller size or better quality)."
+        onChange={(v) => handleChange("preset", v as Preset)}
       >
         {AVAILABLE_PRESETS.map((preset) => (
-          <Form.Dropdown.Item key={preset} value={preset} title={preset.charAt(0).toUpperCase() + preset.slice(1)} />
+          <Form.Dropdown.Item
+            key={preset}
+            value={preset}
+            title={preset.charAt(0).toUpperCase() + preset.slice(1)}
+          />
         ))}
       </Form.Dropdown>
 
@@ -241,7 +111,7 @@ export default function VideoConverter() {
         id="compressionMode"
         title="Compression Mode"
         value={formData.compressionMode}
-        onChange={(v) => handleChange("compressionMode", v as Values["compressionMode"])}
+        onChange={(v) => handleChange("compressionMode", v as CompressionMode)}
       >
         <Form.Dropdown.Item value="bitrate" title="Bitrate (kbps)" />
         <Form.Dropdown.Item value="filesize" title="Max File Size (MB)" />
@@ -250,16 +120,18 @@ export default function VideoConverter() {
       {formData.compressionMode === "bitrate" ? (
         <Form.TextField
           id="bitrate"
-          title="Bitrate (kbps)"
+          title="Bitrate"
           value={formData.bitrate}
           onChange={(v) => handleChange("bitrate", v)}
+          info="Target bitrate in kbps (e.g., 10000 for 10 Mbps)"
         />
       ) : (
         <Form.TextField
           id="maxSize"
-          title="Max Size (MB)"
+          title="Max Size"
           value={formData.maxSize}
           onChange={(v) => handleChange("maxSize", v)}
+          info="Maximum file size in MB"
         />
       )}
 
@@ -272,7 +144,7 @@ export default function VideoConverter() {
         onChange={(files) =>
           handleChange(
             "audioFiles",
-            filterByExtensions(files, [...AVAILABLE_VIDEO_FORMATS, ...AVAILABLE_AUDIO_FORMATS]),
+            filterByExtensions(files, AVAILABLE_AUDIO_FORMATS).slice(0, 1)
           )
         }
         allowMultipleSelection={false}
@@ -282,7 +154,7 @@ export default function VideoConverter() {
 
       <Form.Dropdown
         id="audioBitrate"
-        title="Audio Bitrate (kbps)"
+        title="Audio Bitrate"
         value={formData.audioBitrate}
         onChange={(v) => handleChange("audioBitrate", v)}
       >
@@ -308,25 +180,26 @@ export default function VideoConverter() {
 
       <Form.TextField
         id="subfolderName"
-        title="Subfolder (Optional)"
+        title="Subfolder Name"
         value={formData.subfolderName}
         onChange={(v) => handleChange("subfolderName", v)}
+        info="Optional: Create a subfolder in the output directory"
       />
 
       <Form.TextField
         id="rename"
-        title="Rename (Optional)"
+        title="Rename Pattern"
         value={formData.rename}
         onChange={(v) => handleChange("rename", v)}
-        info="Shortcuts: {name} - Original name, {ext} - Original extension, {format} - Output format, {codec} - Output codec {length} - Output length in seconds"
+        info="Optional: Use {n} for file number, {t} for timestamp"
       />
 
       <Form.Checkbox
         id="useHardwareAcceleration"
         label="Use Hardware Acceleration"
-        info = "Enable hardware acceleration for encoding. This may speed up conversion but can lead to inaccurate results and is not supported by all formats"
         value={formData.useHardwareAcceleration}
         onChange={(v) => handleChange("useHardwareAcceleration", v)}
+        info="Enable hardware acceleration for encoding. This may speed up conversion but may not be supported on all formats."
       />
 
       <Form.Checkbox
@@ -334,13 +207,8 @@ export default function VideoConverter() {
         label="Delete Original Files"
         value={formData.deleteOriginalFiles}
         onChange={(v) => handleChange("deleteOriginalFiles", v)}
+        info="Delete original files after successful conversion"
       />
     </Form>
   );
-
-  if (!isSubmited) return form;
-  
-
-
-  return (<Conversion {...formData} />);
 }
