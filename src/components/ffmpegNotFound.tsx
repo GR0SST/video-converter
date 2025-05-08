@@ -1,4 +1,4 @@
-import { Detail, ActionPanel, Action, environment, open, Icon } from "@raycast/api";
+import { Detail, ActionPanel, Action, open, Icon } from "@raycast/api";
 
 export default function FfmpegMissing() {
   const brewCmd = "brew install ffmpeg";
@@ -34,26 +34,18 @@ After installing FFmpeg, please restart Raycast to ensure the extension can dete
       `}
       actions={
         <ActionPanel>
-          <Action.CopyToClipboard 
-            title="Copy Homebrew Command" 
-            content={brewCmd}
-            icon={Icon.Clipboard}
-          />
+          <Action.CopyToClipboard title="Copy Homebrew Command" content={brewCmd} icon={Icon.Clipboard} />
 
-          <Action 
-            title="Run in Terminal" 
+          <Action
+            title="Run in Terminal"
             onAction={() => open(`terminal:///${encodeURIComponent(brewCmd)}`)}
             icon={Icon.Terminal}
           />
 
-          <Action.OpenInBrowser 
-            title="Homebrew Installation Guide" 
-            url="https://brew.sh/"
-            icon={Icon.Globe}
-          />
+          <Action.OpenInBrowser title="Homebrew Installation Guide" url="https://brew.sh/" icon={Icon.Globe} />
 
-          <Action.OpenInBrowser 
-            title="FFmpeg Documentation" 
+          <Action.OpenInBrowser
+            title="Ffmpeg Documentation"
             url="https://ffmpeg.org/documentation.html"
             icon={Icon.Book}
           />

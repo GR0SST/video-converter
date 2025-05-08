@@ -31,7 +31,7 @@ export default function VideoConverter() {
   // ------------------------------------
   if (!isFfmpegInstalled) return errorInfo();
   if (!formData) return <Form isLoading />;
-  if (isSubmitted) return <Conversion values = {formData} />;
+  if (isSubmitted) return <Conversion values={formData} />;
 
   const availableCodecs = CODEC_OPTIONS[formData.videoFormat];
 
@@ -99,11 +99,7 @@ export default function VideoConverter() {
         onChange={(v) => handleChange("preset", v as Preset)}
       >
         {AVAILABLE_PRESETS.map((preset) => (
-          <Form.Dropdown.Item
-            key={preset}
-            value={preset}
-            title={preset.charAt(0).toUpperCase() + preset.slice(1)}
-          />
+          <Form.Dropdown.Item key={preset} value={preset} title={preset.charAt(0).toUpperCase() + preset.slice(1)} />
         ))}
       </Form.Dropdown>
 
@@ -141,12 +137,7 @@ export default function VideoConverter() {
         id="audioFiles"
         title="Replace Audio"
         value={formData.audioFiles}
-        onChange={(files) =>
-          handleChange(
-            "audioFiles",
-            filterByExtensions(files, AVAILABLE_AUDIO_FORMATS).slice(0, 1)
-          )
-        }
+        onChange={(files) => handleChange("audioFiles", filterByExtensions(files, AVAILABLE_AUDIO_FORMATS).slice(0, 1))}
         allowMultipleSelection={false}
         canChooseFiles
         canChooseDirectories={false}

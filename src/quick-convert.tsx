@@ -7,13 +7,7 @@ import { useVideoConverter } from "./hooks/useVideoConverter";
 import { AVAILABLE_VIDEO_FORMATS, filterByExtensions, type VideoFormat, CODEC_OPTIONS } from "./types";
 
 export default function QuickConvert() {
-  const {
-    formData,
-    isSubmitted,
-    isFfmpegInstalled,
-    handleChange,
-    handleSubmit,
-  } = useVideoConverter(true);
+  const { formData, isSubmitted, isFfmpegInstalled, handleChange, handleSubmit } = useVideoConverter(true);
 
   const handleFormatChange = (format: VideoFormat) => {
     handleChange("videoFormat", format);
@@ -25,11 +19,12 @@ export default function QuickConvert() {
   // ------------------------------------
   if (!isFfmpegInstalled) return errorInfo();
   if (!formData) return <Form isLoading />;
-  if (isSubmitted) return (
-    <ErrorBoundary>
-      <Conversion values={formData} />
-    </ErrorBoundary>
-  );
+  if (isSubmitted)
+    return (
+      <ErrorBoundary>
+        <Conversion values={formData} />
+      </ErrorBoundary>
+    );
 
   return (
     <ErrorBoundary>
@@ -46,9 +41,7 @@ export default function QuickConvert() {
           id="videoFiles"
           title="Files"
           value={formData.videoFiles}
-          onChange={(files) =>
-            handleChange("videoFiles", filterByExtensions(files, AVAILABLE_VIDEO_FORMATS))
-          }
+          onChange={(files) => handleChange("videoFiles", filterByExtensions(files, AVAILABLE_VIDEO_FORMATS))}
           allowMultipleSelection
           canChooseFiles
           canChooseDirectories={false}

@@ -53,4 +53,4 @@ export const CODEC_OPTIONS: Record<VideoFormat, VideoCodec[]> = {
 // Utility Functions
 export const filterByExtensions = (paths: string[], extensions: readonly string[]): string[] => {
   return paths.filter((p) => extensions.some((ext) => p.toLowerCase().endsWith(`.${ext}`)));
-}; 
+};

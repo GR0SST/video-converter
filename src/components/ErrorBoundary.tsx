@@ -1,6 +1,5 @@
 import React from "react";
 import { ActionPanel, Action, List } from "@raycast/api";
-import { ERROR_MESSAGES } from "../constants";
 
 interface Props {
   children: React.ReactNode;
@@ -35,10 +34,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
               accessories={[{ text: "Click to reload" }]}
               actions={
                 <ActionPanel>
-                  <Action
-                    title="Reload Extension"
-                    onAction={() => window.location.reload()}
-                  />
+                  <Action title="Reload Extension" onAction={() => window.location.reload()} />
                 </ActionPanel>
               }
             />
@@ -49,4 +45,4 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
     return this.props.children;
   }
-} 
+}

@@ -28,7 +28,7 @@ export async function loadSettings(): Promise<FormValues> {
 }
 
 export async function saveSettings(values: Partial<FormValues>): Promise<void> {
-    const current = await loadSettings();
-    const merged = { ...current, ...values };
-    await LocalStorage.setItem(SETTINGS_KEY, JSON.stringify(merged));
+  const current = await loadSettings();
+  const merged = { ...current, ...values };
+  await LocalStorage.setItem(SETTINGS_KEY, JSON.stringify(merged));
 }

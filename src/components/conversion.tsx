@@ -15,7 +15,7 @@ export default function Conversion({ values }: { values: FormValues }) {
   useEffect(() => {
     if (hasStartedConversion.current) return;
     hasStartedConversion.current = true;
-    
+
     const startConversion = async () => {
       try {
         setIsLoading(true);
@@ -23,7 +23,7 @@ export default function Conversion({ values }: { values: FormValues }) {
           style: Toast.Style.Animated,
           title: LOADING_MESSAGES.INITIALIZING,
         });
-        
+
         await convertVideo(values, (t) => {
           setTasks(t.map((x) => ({ ...x })));
           setIsLoading(false);
@@ -42,8 +42,12 @@ export default function Conversion({ values }: { values: FormValues }) {
 
   if (tasks.length === 0) return null;
 
-  const isCompletedStatus = (status: string): status is typeof CONVERSION_STATUS.DONE | typeof CONVERSION_STATUS.ERROR | typeof CONVERSION_STATUS.CANCELLED => {
-    return [CONVERSION_STATUS.DONE, CONVERSION_STATUS.ERROR, CONVERSION_STATUS.CANCELLED].includes(status as any);
+  const isCompletedStatus = (
+    status: (typeof CONVERSION_STATUS)[keyof typeof CONVERSION_STATUS],
+  ): status is typeof CONVERSION_STATUS.DONE | typeof CONVERSION_STATUS.ERROR | typeof CONVERSION_STATUS.CANCELLED => {
+    return [CONVERSION_STATUS.DONE, CONVERSION_STATUS.ERROR, CONVERSION_STATUS.CANCELLED].includes(
+      status as typeof CONVERSION_STATUS.DONE | typeof CONVERSION_STATUS.ERROR | typeof CONVERSION_STATUS.CANCELLED,
+    );
   };
 
   const completed = tasks.every((t) => isCompletedStatus(t.status));
@@ -58,16 +62,15 @@ export default function Conversion({ values }: { values: FormValues }) {
   }
 
   const title = completed ? "Conversion Completed" : "Converting…";
-  const subtitle = isLoading ? LOADING_MESSAGES.INITIALIZING : 
-    completed ? "All files processed" : 
-    `${tasks.filter(t => t.status === CONVERSION_STATUS.DONE).length}/${tasks.length} files completed`;
+  const subtitle = isLoading
+    ? LOADING_MESSAGES.INITIALIZING
+    : completed
+      ? "All files processed"
+      : `${tasks.filter((t) => t.status === CONVERSION_STATUS.DONE).length}/${tasks.length} files completed`;
 
   return (
-    <List
-      navigationTitle={title}
-      isLoading={isLoading}
-    >
-      <List.Section 
+    <List navigationTitle={title} isLoading={isLoading}>
+      <List.Section
         title={completed ? "✅ Conversion Complete" : "⚠️ Do not close this window while converting"}
         subtitle={subtitle}
       >
@@ -97,10 +100,7 @@ export default function Conversion({ values }: { values: FormValues }) {
               title={path.basename(t.file)}
               subtitle={subtitle[t.status]}
               icon={icons[t.status]}
-              accessories={[
-                { text: percent },
-                { text: t.status === CONVERSION_STATUS.ERROR ? "Click to retry" : "" }
-              ]}
+              accessories={[{ text: percent }, { text: t.status === CONVERSION_STATUS.ERROR ? "Click to retry" : "" }]}
               actions={
                 <ActionPanel>
                   <Action

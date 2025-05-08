@@ -4,7 +4,7 @@ import path from "path";
 import os from "os";
 import { loadSettings, saveSettings, defaultSettings } from "../utils/settings";
 import { isFFmpegInstalled } from "../utils/ffmpeg";
-import type { FormValues, VideoFormat, VideoCodec } from "../types";
+import type { FormValues } from "../types";
 import { AVAILABLE_VIDEO_FORMATS, AVAILABLE_AUDIO_FORMATS } from "../types";
 
 // ------------------------------------
@@ -147,7 +147,9 @@ export function useVideoConverter(isQuickConvert: boolean = false) {
     if (!formData) return;
 
     // Create a copy without videoFiles and audioFiles for validation
-    const { videoFiles, audioFiles, ...settingsToValidate } = formData;
+    const { ...settingsToValidate } = formData;
+    settingsToValidate.videoFiles = [];
+    settingsToValidate.audioFiles = [];
 
     if (settingsToValidate.compressionMode === "bitrate" && !isInteger(settingsToValidate.bitrate)) {
       showToast({
@@ -187,4 +189,4 @@ export function useVideoConverter(isQuickConvert: boolean = false) {
     handleSaveDefaults,
     handleResetDefaults,
   };
-} 
+}

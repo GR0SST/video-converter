@@ -24,4 +24,4 @@ export const LOADING_MESSAGES = {
   INITIALIZING: "Initializing conversion...",
   CONVERTING: "Converting video...",
   FINALIZING: "Finalizing conversion...",
-} as const; 
+} as const;
