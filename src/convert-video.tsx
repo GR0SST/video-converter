@@ -191,7 +191,7 @@ export default function VideoConverter() {
         title="Rename Pattern"
         value={formData.rename}
         onChange={(v) => handleChange("rename", v)}
-        info="Optional: Use {n} for file number, {t} for timestamp"
+        info="Optional: Use {n} for file name, {ext} for file extension, {format} for format, {codec} for codec, {len} for duration"
       />
 
       <Form.Checkbox

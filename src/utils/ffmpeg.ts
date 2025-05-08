@@ -95,11 +95,11 @@ async function convertFile(task: ConversionTask, params: FormValues, progress: (
 
     if (params.rename && params.rename.trim() !== "") {
         fileName = params.rename
-            .replace(/{name}/g, originalName)
+            .replace(/{n}/g, originalName)
             .replace(/{ext}/g, originalExt.replace(".", ""))
             .replace(/{format}/g, params.videoFormat)
             .replace(/{codec}/g, params.videoCodec)
-            .replace(/{length}/g, `${duration.toFixed()}s`);
+            .replace(/{len}/g, `${duration.toFixed()}s`);
     } else {
         fileName = originalName;
     }
